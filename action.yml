@@ -1,0 +1,30 @@
+name: "Modern Keel Webhook Action"
+author: "toasterson@gmail.com"
+description: "Brag to your keel about your fantastic new image via native webhook from github actions"
+branding:
+  icon: "info"
+  color: "green"
+inputs:
+  image:
+    description: The URL of your image without tags
+    required: true
+  image-tag:
+    description: The TAG of the image you just built
+    required: true
+  keel-url:
+    description: URL of your keel installation to which to brag to about this fantastic image of yours
+    required: true
+  keel-username:
+    required: true
+  keel-password:
+    required: true
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - ${{ inputs.image }}
+    - ${{ inputs.keel-url }}
+    - ${{ inputs.keel-username }}
+    - ${{ inputs.keel-password }}
+

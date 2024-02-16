@@ -1,93 +1,53 @@
 # Keel Webhook Github Action
 
-This Action runs can be used to notify [Keel](https://keel.sh) about docker image updates (using [Keel's webhook endpoint](https://keel.sh/v1/guide/documentation.html#Webhooks). This action is meant to be used in conjunction with the [Docker Tag action](https://github.com/actions/docker/tag).
+This Action runs can be used to notify [Keel](https://keel.sh) about docker image updates (using [Keel's webhook endpoint](https://keel.sh/v1/guide/documentation.html#Webhooks).
 
 ## Usage
 
-It is **important** to run `actions/docker/tag` with its `--env` flag set prior to exucting the `keel-webhook-action`, because the `keel-webhook-action` uses the `$IMAGE_REF` pushed by `https://github.com/actions/docker/tree/master/tag`.
+Use this action in a workflow that publishes docker image. All parameters are mandatory so you can use it like this.
+Define two secrets for the Basic Auth protecting your keel.
 
-```hcl
-workflow "Update Docker Image" {
-  on = "push"
-  resolves = [
-    "Send Keel notifications",
-  ]
-}
-
-action "Docker Build" {
-  uses = "actions/docker/cli@master"
-  args = "build -t your-image ."
-}
-
-action "Docker Tag" {
-  uses = "actions/docker/tag@master"
-  needs = ["Docker Build"]
-  args = "--no-sha --no-latest --env your-image your-registry.com/your-image"
-}
-
-action "Docker Login" {
-  uses = "actions/docker/login@master"
-  needs = ["Docker Tag"]
-  secrets = ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
-}
-
-action "Docker Push" {
-  uses = "actions/docker/cli@master"
-  needs = ["Docker Login"]
-  args = "push your-registry.com/your-image"
-}
-
-action "Send Keel notifications" {
-  uses = "rkusa/keel-webhook-action@master"
-  needs = ["Docker Push"]
-  args = "your-registry.com/your-image"
-  secrets = ["KEEL_USERNAME", "KEEL_PASSWORD"]
-  env = {
-    KEEL_WEBHOOK_URL = "https://keel.your-server.com/"
-  }
-}
-
+```yaml
+- name: Send keel Notification
+  uses: Toasterson/keel-webhook-action@master
+  with: 
+    image: "ghcr.io/repo/image"
+    keel-username: ${{ secrets.KEEL_USERNAME }}
+    keel-password: ${{ secrets.KEEL_PASSWORD }}
+    image-tag: ${{ env.GITHUB_REF_SLUG }}
+    keel-url: "https://keel.example.com/"
 ```
 
-### Secrets
+## Example Workflow
 
-* `KEEL_USERNAME` and `KEEL_PASSWORD` - **Required**. The basic authentication username and password used to access your Keel endpoint.
+**Note:** No guarantee is given that these docker actions work so use the ones from the marketplace and simply place tag and name properly
 
-### Environment variables
+```yaml
+name: push
+on: [push]
 
-* `KEEL_WEBHOOK_URL` - **Required**. The URL to your Keel installation.
-* `IMAGE_TAG` - **Required**. The docker image tag the notification should be send to.
-
-#### Example
-
-Send notification for one image ...
-
-```hcl
-action "Send Keel notifications" {
-  uses = "rkusa/keel-webhook-action@master"
-  args = "your-registry.com/your-image"
-  secrets = ["KEEL_USERNAME", "KEEL_PASSWORD"]
-  env = {
-    KEEL_WEBHOOK_URL = "https://keel.your-server.com/"
-  }
-}
+jobs:
+  buildandpushdockerimage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+      - name: build docker image
+        run: docker build -t "ghcr.io/repo/image:${TAG}"
+        env:
+          TAG: ${{ env.GITHUB_REF_SLUG }}
+      - name: push docker image
+        run: docker push -t "ghcr.io/repo/image:${TAG}"
+        env:
+          TAG: ${{ env.GITHUB_REF_SLUG }}
+      - name: Send keel Notification
+        uses: Toasterson/keel-webhook-action@master
+        with: 
+          image: "ghcr.io/repo/image"
+          keel-username: ${{ secrets.KEEL_USERNAME }}
+          keel-password: ${{ secrets.KEEL_PASSWORD }}
+          image-tag: ${{ env.GITHUB_REF_SLUG }}
+          keel-url: "https://keel.example.com/"
 ```
-
-... or for multiple images
-
-```hcl
-action "Send Keel notifications" {
-  uses = "rkusa/keel-webhook-action@master"
-  args = "your-registry.com/first-image your-registry.com/second-image"
-  secrets = ["KEEL_USERNAME", "KEEL_PASSWORD"]
-  env = {
-    KEEL_WEBHOOK_URL = "https://keel.your-server.com/"
-  }
-}
-```
-
-## License
-
-The Dockerfile and associated scripts and documentation in this project are released under the [MIT License](LICENSE).
-
-Container images built with this project include third party materials. As with all Docker images, these likely also contain other software which may be under other licenses. It is the image user's responsibility to ensure that any use of this image complies with any relevant licenses for all software contained within.
