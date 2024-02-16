@@ -25,6 +25,7 @@ runs:
   args:
     - ${{ inputs.image }}
     - ${{ inputs.keel-url }}
+    - ${{ inputs.image-tag }}
     - ${{ inputs.keel-username }}
     - ${{ inputs.keel-password }}
 
